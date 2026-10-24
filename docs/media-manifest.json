@@ -1,0 +1,31 @@
+[
+  {
+    "file": "docs/media/closing-time.png",
+    "bytes": 299919
+  },
+  {
+    "file": "docs/media/detour.png",
+    "bytes": 301215
+  },
+  {
+    "file": "docs/media/overview.png",
+    "bytes": 300673
+  },
+  {
+    "file": "docs/media/demo.mp4",
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "codec_type": "video",
+        "width": 1280,
+        "height": 900,
+        "avg_frame_rate": "30/1",
+        "nb_frames": "1500"
+      }
+    ],
+    "format": {
+      "duration": "50.000000"
+    }
+  }
+]

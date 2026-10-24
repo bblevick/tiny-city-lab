@@ -1,0 +1,9 @@
+{
+  "measuredAt": "2026-10-24T23:48:19.072Z",
+  "hardware": "Apple M4, 24 GB RAM",
+  "context": "Local headless Chromium, 1440×1100 viewport, reduced motion, 120 requestAnimationFrame intervals. This measures scheduling, not camera or input latency.",
+  "medianFrameIntervalMs": 16.699999999999818,
+  "p95FrameIntervalMs": 16.700000000000273,
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+  "pageErrors": []
+}
