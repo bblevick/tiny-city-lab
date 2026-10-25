@@ -1,39 +1,10 @@
-# Tiny City Lab — Lastlight — bounded tickets
+# Lastlight v2 bounded implementation tickets
 
-Implement only the next uncompleted ticket. Read SPEC.md and current code, preserve interfaces, use the locked stack, and report actual checks and concrete blockers. Do not replace required execution with a mock.
+Implement the next uncompleted ticket only. Read SPEC.md and current code. Preserve interfaces and exact dependency lock. Separate pure routing from UI. Run relevant checks and record actual results; never substitute invented streets or fake external responses for a required real data check.
 
-## [x] C1 — Synthetic city and weighted graph
-
-Create the seeded 7×7 map and three bridge crossings; test shortest paths and disconnected river banks.
-
-Prerequisite: the preceding ticket. Verify with `npm run typecheck && npm test && npm run test:e2e && npm run build`; use the specific device/trainer checks from SPEC.md where applicable.
-
-## [x] C2 — Deterministic couriers
-
-Implement segment travel, deadlines, late/pending accounting, stranding and recovery; unchanged dispatch must deliver all twelve on time.
-
-Prerequisite: the preceding ticket. Verify with `npm run typecheck && npm test && npm run test:e2e && npm run build`; use the specific device/trainer checks from SPEC.md where applicable.
-
-## [x] C3 — Isometric scene
-
-Render original building geometry, river, bridge barriers, route overlay, courier names and parcel markers. Keep rendering separate from graph state.
-
-Prerequisite: the preceding ticket. Verify with `npm run typecheck && npm test && npm run test:e2e && npm run build`; use the specific device/trainer checks from SPEC.md where applicable.
-
-## [x] C4 — Interventions and baseline
-
-Expose clickable roads and accessible incident/road controls. Advance an unaltered baseline on the same clock and show its route/van.
-
-Prerequisite: the preceding ticket. Verify with `npm run typecheck && npm test && npm run test:e2e && npm run build`; use the specific device/trainer checks from SPEC.md where applicable.
-
-## [x] C5 — Portable evenings
-
-Validate ordered scenarios and replay exact history; keep pause, reset, import errors, keyboard controls and narrow layout usable.
-
-Prerequisite: the preceding ticket. Verify with `npm run typecheck && npm test && npm run test:e2e && npm run build`; use the specific device/trainer checks from SPEC.md where applicable.
-
-## [x] C6 — Portfolio release
-
-Capture the real 50-second demonstration, three screenshots, source-independent notices, browser checks and Pages deployment.
-
-Prerequisite: the preceding ticket. Verify with `npm run typecheck && npm test && npm run test:e2e && npm run build`; use the specific device/trainer checks from SPEC.md where applicable.
+- [x] C1 — Preserve three actual OSM neighborhoods, source raw data and hashes. Parse directed street geometry and restrict motor access. Check: `npm test` on the source checksum and directed fixture.
+- [x] C2 — Add seeded random and coordinate stops, configurable fleet, balanced insertion and bounded directed 2-opt. Check: `npm test` assigns every stop once and returns 1/4/8-van fleets to depot.
+- [x] C3 — Draw real footprints/street names in original isometric/north-up atlas; pan/zoom and map tools. Check: `npm run test:e2e`, inspect all three screenshots.
+- [x] C4 — Continuous real-distance playback, service stops, closures, stranded recovery, baseline, reset. Check: `npm test` on in-flight segment closure and recovery.
+- [x] C5 — Coordinate CSV, version 2 dispatch transfer, custom-area loader, cancellation/error handling. Check: `npm run test:e2e`, real custom download in docs/custom-map-check.json.
+- [x] C6 — Refresh media/docs, run final type/unit/browser/build and production-path checks, publish, verify live revision. Commands: `npm run typecheck && npm test && npm run test:e2e && BASE_PATH=/tiny-city-lab/ npm run build`, `npm run demo:capture`.

@@ -1,30 +1,182 @@
-import {
-  nodes,
-  roads,
-  plan,
-  sampleCourier,
-  type World,
-  type Road,
-} from "./city";
-const W = 1280,
-  H = 790;
-export function iso(x: number, y: number, z = 0) {
-  const expanded = x + (x <= 2 ? 0 : x >= 3 ? 0.7 : 0.7 * (x - 2));
+import { type City, geographic, type Point } from "./graph";
+import { type World, sampleCourier, routeRoads } from "./city";
+export const W = 1280,
+  H = 840;
+export interface View {
+  zoom: number;
+  panX: number;
+  panY: number;
+  tilt: boolean;
+  buildings: boolean;
+}
+export const defaultView = (): View => ({
+  zoom: 1,
+  panX: 0,
+  panY: 0,
+  tilt: true,
+  buildings: true,
+});
+export function project(x: number, y: number, view: View, z = 0) {
+  const scale = 0.58 * view.zoom;
   return {
-    x: W / 2 + (expanded - y) * 74 - 25,
-    y: 125 + (expanded + y) * 36 - z,
+    x: W / 2 + view.panX + (view.tilt ? (x - y) * 0.7071 : x) * scale,
+    y:
+      H / 2 +
+      view.panY +
+      (view.tilt ? (x + y) * 0.4384 : y) * scale -
+      z * scale,
   };
+}
+export function unproject(x: number, y: number, view: View) {
+  const scale = 0.58 * view.zoom,
+    a = (x - W / 2 - view.panX) / scale,
+    b = (y - H / 2 - view.panY) / scale;
+  return view.tilt
+    ? { x: (a / 0.7071 + b / 0.4384) / 2, y: (b / 0.4384 - a / 0.7071) / 2 }
+    : { x: a, y: b };
+}
+export function mapPoint(city: City, x: number, y: number, view: View): Point {
+  const p = unproject(x, y, view);
+  return geographic(p.x, p.y, city.center);
 }
 function polygon(
   ctx: CanvasRenderingContext2D,
   points: { x: number; y: number }[],
-  color: string,
+  fill: string,
 ) {
-  ctx.fillStyle = color;
+  ctx.fillStyle = fill;
   ctx.beginPath();
   points.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
   ctx.closePath();
   ctx.fill();
+}
+let cache: HTMLCanvasElement | null = null,
+  cacheKey = "",
+  cityRef: City | null = null;
+let routeKey = "",
+  liveRoute: number[] = [],
+  ghostRoute: number[] = [];
+export function clearCache() {
+  cacheKey = "";
+  routeKey = "";
+  cityRef = null;
+}
+function line(
+  ctx: CanvasRenderingContext2D,
+  city: City,
+  index: number,
+  view: View,
+  color: string,
+  width: number,
+  dash: number[] = [],
+) {
+  const r = city.roads[index]!,
+    a = project(city.nodes[r.a]!.x, city.nodes[r.a]!.y, view),
+    b = project(city.nodes[r.b]!.x, city.nodes[r.b]!.y, view);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.lineCap = "round";
+  ctx.setLineDash(dash);
+  ctx.beginPath();
+  ctx.moveTo(a.x, a.y);
+  ctx.lineTo(b.x, b.y);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+function background(city: City, view: View) {
+  const key = JSON.stringify(view);
+  if (cache && key === cacheKey && cityRef === city) return cache;
+  cache = document.createElement("canvas");
+  cache.width = W;
+  cache.height = H;
+  cacheKey = key;
+  cityRef = city;
+  const ctx = cache.getContext("2d")!;
+  ctx.fillStyle = "#e4e5d3";
+  ctx.fillRect(0, 0, W, H);
+  const grad = ctx.createRadialGradient(650, 380, 40, 650, 380, 800);
+  grad.addColorStop(0, "#eeeddd");
+  grad.addColorStop(1, "#d2d9c2");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+  for (const s of city.shapes.filter((s) => s.kind !== "building"))
+    polygon(
+      ctx,
+      s.points.map((p) => project(p.x, p.y, view)),
+      s.kind === "water" ? "#8db8b6" : "#b5c69e",
+    );
+  for (let i = 0; i < city.roads.length; i++) {
+    const r = city.roads[i]!,
+      major = ["primary", "secondary", "tertiary"].includes(r.kind);
+    line(ctx, city, i, view, major ? "#c5bda7" : "#d5d1bd", major ? 8 : 5);
+    line(ctx, city, i, view, "#faf5e5", major ? 5 : 3);
+  }
+  if (view.buildings) {
+    const shapes = city.shapes
+      .filter((s) => s.kind === "building")
+      .sort((a, b) => {
+        const p = a.points[0]!,
+          q = b.points[0]!;
+        return view.tilt ? p.x + p.y - (q.x + q.y) : p.y - q.y;
+      });
+    for (const s of shapes) {
+      const height = view.tilt ? s.height : 0,
+        base = s.points.map((p) => project(p.x, p.y, view)),
+        top = s.points.map((p) => project(p.x, p.y, view, height));
+      if (view.tilt)
+        for (let i = 1; i < base.length; i++) {
+          const a = base[i - 1]!,
+            b = base[i]!;
+          if (b.x > a.x)
+            polygon(
+              ctx,
+              [a, b, top[i]!, top[i - 1]!],
+              i % 2 ? "#939d83" : "#b2b396",
+            );
+        }
+      polygon(ctx, top, "#c5c8ae");
+      ctx.strokeStyle = "#aab59a";
+      ctx.lineWidth = 0.4;
+      ctx.stroke();
+    }
+  }
+  // Labels are derived from actual named OSM streets, spaced to avoid a wall of text.
+  const used: string[] = [],
+    occupied: { x: number; y: number }[] = [];
+  for (const r of [...city.roads].sort((a, b) => b.meters - a.meters)) {
+    if (r.name.startsWith("Unnamed") || used.includes(r.name) || r.meters < 45)
+      continue;
+    const a = city.nodes[r.a]!,
+      b = city.nodes[r.b]!,
+      p = project((a.x + b.x) / 2, (a.y + b.y) / 2, view);
+    if (
+      p.x < 70 ||
+      p.x > W - 70 ||
+      p.y < 65 ||
+      p.y > H - 70 ||
+      occupied.some((q) => Math.hypot(p.x - q.x, p.y - q.y) < 85)
+    )
+      continue;
+    used.push(r.name);
+    occupied.push(p);
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    const pa = project(a.x, a.y, view),
+      pb = project(b.x, b.y, view);
+    let angle = Math.atan2(pb.y - pa.y, pb.x - pa.x);
+    if (angle > Math.PI / 2 || angle < -Math.PI / 2) angle += Math.PI;
+    ctx.rotate(angle);
+    ctx.font = '10px "Trebuchet MS"';
+    ctx.textAlign = "center";
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "#efeddf";
+    ctx.strokeText(r.name, 0, -5);
+    ctx.fillStyle = "#68745c";
+    ctx.fillText(r.name, 0, -5);
+    ctx.restore();
+    if (used.length >= 32) break;
+  }
+  return cache;
 }
 export function drawCity(
   canvas: HTMLCanvasElement,
@@ -33,200 +185,154 @@ export function drawCity(
   selected: number,
   ghost: boolean,
   hover: string | null,
-  fraction = 0,
+  view: View,
 ) {
-  canvas.width = W;
-  canvas.height = H;
-  const ctx = canvas.getContext("2d")!;
-  ctx.fillStyle = "#e7dfca";
-  ctx.fillRect(0, 0, W, H);
-  const night = w.tick / 60;
-  const gradient = ctx.createLinearGradient(0, 0, 0, H);
-  gradient.addColorStop(0, "#e2d4ba");
-  gradient.addColorStop(1, "#eee8d7");
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, W, H);
-  polygon(
-    ctx,
-    [iso(-0.5, -0.5), iso(6.7, -0.5), iso(6.7, 6.7), iso(-0.5, 6.7)],
-    "#8fa188",
-  );
-  polygon(
-    ctx,
-    [iso(2.25, -0.5), iso(2.9, -0.5), iso(2.9, 6.7), iso(2.25, 6.7)],
-    "#7caaa9",
-  );
-  ctx.strokeStyle = "#a9d4c7";
-  ctx.lineWidth = 1;
-  for (let y = -0.3; y < 7; y += 0.35) {
-    const a = iso(2.35, y),
-      b = iso(2.8, y + 0.12);
-    ctx.beginPath();
-    ctx.moveTo(a.x, a.y);
-    ctx.lineTo(b.x, b.y);
-    ctx.stroke();
+  if (canvas.width !== W) {
+    canvas.width = W;
+    canvas.height = H;
   }
-  function line(r: Road, color: string, width: number, dash: number[] = []) {
-    const a = iso(nodes[r.a].x, nodes[r.a].y),
-      b = iso(nodes[r.b].x, nodes[r.b].y);
-    ctx.setLineDash(dash);
-    ctx.strokeStyle = color;
-    ctx.lineWidth = width;
-    ctx.lineCap = "round";
-    ctx.beginPath();
-    ctx.moveTo(a.x, a.y);
-    ctx.lineTo(b.x, b.y);
-    ctx.stroke();
-    ctx.setLineDash([]);
+  const ctx = canvas.getContext("2d")!,
+    city = w.city;
+  ctx.drawImage(background(city, view), 0, 0);
+  const c = w.couriers[selected]!,
+    bc = baseline.couriers[selected]!,
+    key = [
+      selected,
+      c.node,
+      c.to,
+      c.index,
+      bc.node,
+      bc.to,
+      bc.index,
+      [...w.closed].join(","),
+    ].join("|");
+  if (key !== routeKey) {
+    routeKey = key;
+    liveRoute = routeRoads(w, c);
+    ghostRoute = routeRoads(baseline, bc);
   }
-  for (const r of roads) {
-    line(r, r.bridge ? "#a58d67" : "#c9c2a9", r.bridge ? 24 : 17);
-    line(
-      r,
-      w.closed.has(r.id) ? "#9b4f3a" : r.id === hover ? "#f2ad68" : "#e8e0ca",
-      r.bridge ? 17 : 11,
-    );
-    if (w.closed.has(r.id)) {
-      const a = iso(nodes[r.a].x, nodes[r.a].y),
-        b = iso(nodes[r.b].x, nodes[r.b].y),
-        x = (a.x + b.x) / 2,
-        y = (a.y + b.y) / 2;
-      ctx.strokeStyle = "#fff0cc";
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(x - 6, y - 6);
-      ctx.lineTo(x + 6, y + 6);
-      ctx.moveTo(x + 6, y - 6);
-      ctx.lineTo(x - 6, y + 6);
-      ctx.stroke();
+  if (ghost)
+    for (const i of ghostRoute)
+      line(ctx, city, i, view, "#55747a88", 4, [5, 6]);
+  for (const i of liveRoute) line(ctx, city, i, view, c.color, 4);
+  for (const id of w.closed) {
+    const i = city.roads.findIndex((r) => r.id === id);
+    if (i >= 0) {
+      line(ctx, city, i, view, "#ac463c", 6, [5, 3]);
+      const r = city.roads[i]!,
+        a = city.nodes[r.a]!,
+        b = city.nodes[r.b]!,
+        p = project((a.x + b.x) / 2, (a.y + b.y) / 2, view);
+      ctx.fillStyle = "#a03e31";
+      ctx.font = "bold 17px monospace";
+      ctx.fillText("×", p.x - 5, p.y + 5);
     }
   }
-  const courier = w.couriers[selected];
-  const route = plan(courier, w.closed);
-  for (let i = 1; i < route.length; i++) {
-    const r = roads.find(
-      (r) =>
-        (r.a === route[i - 1] && r.b === route[i]) ||
-        (r.b === route[i - 1] && r.a === route[i]),
-    );
-    if (r) line(r, courier.color, 4);
+  if (hover) {
+    const i = city.roads.findIndex((r) => r.id === hover);
+    if (i >= 0) line(ctx, city, i, view, "#e6a357", 6);
+  }
+  const delivered = new Set(w.couriers.flatMap((c) => c.delivered));
+  for (const s of w.stops) {
+    const owner = w.couriers.find((c) => c.stops.some((p) => p.id === s.id)),
+      n = city.nodes[s.node]!,
+      p = project(n.x, n.y, view),
+      done = delivered.has(s.id);
+    ctx.fillStyle = done ? "#536e41" : (owner?.color ?? "#a43c31");
+    ctx.strokeStyle = "#fff8e8";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, done ? 6 : 9, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    if (!done) {
+      ctx.fillStyle = "#fff9e9";
+      ctx.font = "bold 9px monospace";
+      ctx.textAlign = "center";
+      ctx.fillText(String(s.id), p.x, p.y + 3);
+    }
   }
   if (ghost) {
-    const route = plan(baseline.couriers[selected], baseline.closed);
-    for (let i = 1; i < route.length; i++) {
-      const r = roads.find(
-        (r) =>
-          (r.a === route[i - 1] && r.b === route[i]) ||
-          (r.b === route[i - 1] && r.a === route[i]),
-      );
-      if (r) line(r, "#f5f2e8", 3, [5, 7]);
-    }
+    const p = sampleCourier(city, bc),
+      v = project(p.x, p.y, view);
+    ctx.strokeStyle = "#54777e";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([3, 3]);
+    ctx.strokeRect(v.x - 11, v.y - 7, 22, 14);
+    ctx.setLineDash([]);
   }
-  // Buildings are original deterministic geometry, sorted back-to-front.
-  const blocks = Array.from({ length: 36 }, (_, i) => ({
-    x: (i % 6) + 0.5,
-    y: Math.floor(i / 6) + 0.5,
-    i,
-  }))
-    .filter((b) => b.x !== 2.5)
-    .sort((a, b) => a.x + a.y - b.x - b.y);
-  for (const b of blocks) {
-    const height = 25 + ((b.i * 17) % 4) * 14,
-      p = [
-        iso(b.x - 0.32, b.y - 0.32),
-        iso(b.x + 0.32, b.y - 0.32),
-        iso(b.x + 0.32, b.y + 0.32),
-        iso(b.x - 0.32, b.y + 0.32),
-      ],
-      top = p.map((p) => ({ ...p, y: p.y - height }));
-    const palette = ["#b27857", "#d1ad77", "#8b9b83", "#c58a6b"][b.i % 4];
-    polygon(ctx, [p[1], p[2], top[2], top[1]], "#806e55");
-    polygon(ctx, [p[2], p[3], top[3], top[2]], palette);
-    polygon(ctx, top, b.i % 3 === 0 ? "#526b60" : "#c1a17a");
-    ctx.fillStyle = night > 0.25 ? "#f3cd75" : "#e9ddad";
-    for (let k = 0; k < 3; k++)
-      ctx.fillRect(p[2].x - 17 + k * 9, p[2].y - height + 13, 4, 6);
-    if (b.i % 7 === 0) {
-      const t = iso(b.x, b.y, height + 4);
-      ctx.fillStyle = "#254838";
-      ctx.beginPath();
-      ctx.arc(t.x, t.y, 12, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-  for (const c of w.couriers) {
-    for (let i = 0; i < c.parcels.length; i++) {
-      const parcel = c.parcels[i],
-        n = nodes[parcel.destination],
-        p = iso(n.x, n.y, 17);
-      ctx.fillStyle = parcel.deliveredAt !== null ? "#365f40" : c.color;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = "#fff3d7";
-      ctx.font = "9px monospace";
+  for (const van of w.couriers) {
+    const p = sampleCourier(city, van),
+      v = project(p.x, p.y, view),
+      active = van.id === selected;
+    ctx.fillStyle = "#2b413344";
+    ctx.beginPath();
+    ctx.ellipse(v.x, v.y + 7, 13, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = van.color;
+    ctx.strokeStyle = "#fff5dd";
+    ctx.lineWidth = active ? 3 : 1;
+    ctx.fillRect(v.x - 10, v.y - 7, 20, 13);
+    ctx.strokeRect(v.x - 10, v.y - 7, 20, 13);
+    ctx.fillStyle = "#eee6bf";
+    ctx.fillRect(v.x + 3, v.y - 4, 5, 6);
+    if (active) {
+      ctx.font = "bold 11px monospace";
+      ctx.fillStyle = "#314c3e";
       ctx.textAlign = "center";
       ctx.fillText(
-        parcel.deliveredAt !== null ? "✓" : String(i + 1),
-        p.x,
-        p.y + 3,
+        van.name + (van.status === "stranded" ? " · WAITING" : ""),
+        v.x,
+        v.y - 14,
       );
     }
   }
-  if (ghost) {
-    const p = sampleCourier(baseline.couriers[selected], fraction),
-      v = iso(p.x, p.y, 8);
-    ctx.strokeStyle = "#f7f2e2";
-    ctx.lineWidth = 3;
-    ctx.setLineDash([3, 3]);
-    ctx.strokeRect(v.x - 13, v.y - 8, 26, 16);
-    ctx.setLineDash([]);
-  }
-  for (const c of w.couriers) {
-    const p = sampleCourier(c, fraction),
-      v = iso(p.x, p.y, 10);
-    ctx.fillStyle = "#344333";
-    ctx.beginPath();
-    ctx.ellipse(v.x, v.y + 13, 15, 5, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = c.color;
-    ctx.fillRect(v.x - 13, v.y - 7, 26, 16);
-    ctx.fillStyle = "#f6e8ba";
-    ctx.fillRect(v.x + 4, v.y - 4, 6, 6);
-    ctx.fillStyle = "#263d30";
-    ctx.beginPath();
-    ctx.arc(v.x - 7, v.y + 11, 4, 0, Math.PI * 2);
-    ctx.arc(v.x + 8, v.y + 11, 4, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.font = "11px monospace";
-    ctx.fillStyle = "#293e30";
-    ctx.textAlign = "center";
-    ctx.fillText(c.name + (c.status === "stranded" ? " !" : ""), v.x, v.y - 17);
-  }
-  const post = iso(0, 3, 35);
-  ctx.fillStyle = "#f1dfab";
-  ctx.fillRect(post.x - 31, post.y - 10, 62, 22);
-  ctx.strokeStyle = "#38553e";
-  ctx.strokeRect(post.x - 31, post.y - 10, 62, 22);
-  ctx.font = "9px monospace";
-  ctx.fillStyle = "#38553e";
+  const depot = city.nodes[w.depot]!,
+    p = project(depot.x, depot.y, view);
+  ctx.fillStyle = "#2e4e3b";
+  ctx.fillRect(p.x - 13, p.y - 13, 26, 26);
+  ctx.fillStyle = "#f6ebcc";
+  ctx.font = "bold 13px monospace";
   ctx.textAlign = "center";
-  ctx.fillText("POST OFFICE", post.x, post.y + 4);
+  ctx.fillText("D", p.x, p.y + 5);
+  ctx.fillStyle = "#39533f";
   ctx.textAlign = "left";
-  ctx.fillStyle = "#344d3a";
-  ctx.font = "12px monospace";
-  ctx.fillText("LASTLIGHT / POP. 49 INTERSECTIONS", 35, 40);
-  ctx.fillText("CLICK A STREET TO CHANGE ITS EVENING.", 35, H - 35);
+  ctx.font = "11px monospace";
+  ctx.fillText("REAL STREETS / " + city.name.toUpperCase(), 26, 32);
+  ctx.font = "9px monospace";
+  ctx.fillStyle = "#6b765f";
+  ctx.fillText(
+    `${city.nodes.length.toLocaleString()} STREET NODES · ${city.roads.length.toLocaleString()} SEGMENTS · N ↗`,
+    26,
+    50,
+  );
+  // Geographic scale bar uses the same projection as the street geometry.
+  const a = project(0, 0, view),
+    b = project(200, 0, view),
+    length = Math.hypot(b.x - a.x, b.y - a.y);
+  ctx.strokeStyle = "#52634b";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(27, H - 30);
+  ctx.lineTo(27 + length, H - 30);
+  ctx.stroke();
+  ctx.fillText("200 m", 27, H - 39);
   ctx.textAlign = "right";
-  ctx.fillText("FICTIONAL CITY · DETERMINISTIC ROUTES", W - 35, H - 35);
-  ctx.textAlign = "left";
+  ctx.fillText(
+    view.tilt
+      ? "REAL FOOTPRINTS · ILLUSTRATIVE BUILDING HEIGHTS"
+      : "NORTH UP · REAL STREET GEOMETRY",
+    W - 24,
+    H - 25,
+  );
 }
-export function hitRoad(x: number, y: number) {
-  let nearest: Road | null = null,
-    best = 14;
-  for (const r of roads) {
-    const a = iso(nodes[r.a].x, nodes[r.a].y),
-      b = iso(nodes[r.b].x, nodes[r.b].y),
+export function hitRoad(city: City, x: number, y: number, view: View) {
+  let nearest: number | null = null,
+    best = 13;
+  for (let i = 0; i < city.roads.length; i++) {
+    const r = city.roads[i]!,
+      a = project(city.nodes[r.a]!.x, city.nodes[r.a]!.y, view),
+      b = project(city.nodes[r.b]!.x, city.nodes[r.b]!.y, view),
       dx = b.x - a.x,
       dy = b.y - a.y,
       t = Math.max(
@@ -236,8 +342,8 @@ export function hitRoad(x: number, y: number) {
       distance = Math.hypot(x - a.x - t * dx, y - a.y - t * dy);
     if (distance < best) {
       best = distance;
-      nearest = r;
+      nearest = i;
     }
   }
-  return nearest;
+  return nearest === null ? null : city.roads[nearest]!;
 }

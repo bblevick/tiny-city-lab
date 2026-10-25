@@ -1,0 +1,21 @@
+{
+  "id": "manhattan",
+  "name": "New York \u00b7 East Village",
+  "center": [
+    40.727,
+    -73.986
+  ],
+  "bounds": [
+    -73.99311226618924,
+    40.72161013295005,
+    -73.97888773381077,
+    40.732389867049946
+  ],
+  "source": "https://api.openstreetmap.org/api/0.6/map?bbox=-73.993112,40.721610,-73.978888,40.732390",
+  "retrievedAt": "2026-10-25T00:10:24Z",
+  "rawSHA256": "622a3fc688aee3f7121a91b2d0cf765a79c25f783b1881dcd812e0983172b9e4",
+  "normalizedSHA256": "485eba88cdb125fa729ba5518efcd6ddd7c6acfd6937aa119b42e8d8a00bd953",
+  "license": "ODbL-1.0",
+  "attribution": "\u00a9 OpenStreetMap contributors",
+  "normalization": "Node references resolved to way geometry; selected streets, building footprints, water and parks; relations omitted."
+}

@@ -1,0 +1,21 @@
+{
+  "id": "cleveland",
+  "name": "Cleveland \u00b7 Ohio City",
+  "center": [
+    41.485,
+    -81.708
+  ],
+  "bounds": [
+    -81.71519484339356,
+    41.47961013295005,
+    -81.70080515660644,
+    41.49038986704995
+  ],
+  "source": "https://api.openstreetmap.org/api/0.6/map?bbox=-81.715195,41.479610,-81.700805,41.490390",
+  "retrievedAt": "2026-10-25T00:10:02Z",
+  "rawSHA256": "9259610078c9378dce6cd37cffea2551cbaca461e18a5de1b2681b744bf383f0",
+  "normalizedSHA256": "0ca7d27fce68622be11eec7273f70fa78411ac613b4b3f9927b49239dfa2c913",
+  "license": "ODbL-1.0",
+  "attribution": "\u00a9 OpenStreetMap contributors",
+  "normalization": "Node references resolved to way geometry; selected streets, building footprints, water and parks; relations omitted."
+}

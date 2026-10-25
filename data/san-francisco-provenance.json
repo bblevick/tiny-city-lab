@@ -1,0 +1,21 @@
+{
+  "id": "san-francisco",
+  "name": "San Francisco \u00b7 Mission",
+  "center": [
+    37.759,
+    -122.416
+  ],
+  "bounds": [
+    -122.42281749565522,
+    37.75361013295005,
+    -122.40918250434477,
+    37.76438986704995
+  ],
+  "source": "https://api.openstreetmap.org/api/0.6/map?bbox=-122.422817,37.753610,-122.409183,37.764390",
+  "retrievedAt": "2026-10-25T00:10:11Z",
+  "rawSHA256": "218cea127a8ca84545cff5645e082a35774fffdc61f7525928d77b07c1467ac6",
+  "normalizedSHA256": "ddc91ce5bed1a07f8583b239269dcfa26ebe6b0819febe9be6000cb63191f6e4",
+  "license": "ODbL-1.0",
+  "attribution": "\u00a9 OpenStreetMap contributors",
+  "normalization": "Node references resolved to way geometry; selected streets, building footprints, water and parks; relations omitted."
+}

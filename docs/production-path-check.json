@@ -1,7 +1,7 @@
 {
-  "checkedAt": "2026-10-24T23:54:26.726Z",
-  "context": "Fresh Git clone, npm ci, repository-base production build",
-  "url": "http://127.0.0.1:4304/tiny-city-lab/",
+  "checkedAt": "2026-10-25T00:14:11.710Z",
+  "version": 2,
+  "url": "http://127.0.0.1:4316/tiny-city-lab/",
   "errors": [],
   "failed": [],
   "externalRequests": [],

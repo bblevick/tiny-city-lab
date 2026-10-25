@@ -1,15 +1,9 @@
-# Verification — October 24, 2026
+# Lastlight v2 verification — October 24, 2026
 
-Local Node 24.22.1 on Apple M4 / 24 GB RAM.
+Apple M4, 24 GB RAM, Node 24.22.1. Six unit cases verify directed/private access, random manifest repeatability and snap bounds, assignment and depot return for 1/4/8 vans, current-segment closure/stranding/recovery, version 2 numerical replay, and checksummed real snapshots for all three cities. Eight Chromium/WebKit browser checks cover cities/fleet/manifest, placement, imports, closure/recovery, transfer, view controls, narrow layout and custom service failure.
 
-- Type checking and production build passed.
-- 5 unit tests and 4 Chromium/WebKit checks passed.
-- Narrow viewport and invalid imports covered.
-- Actual screenshots and 50-second video in docs/media; dimensions in docs/media-manifest.json.
-- Production-path and public URL checks are recorded with release evidence.
+A real browser custom-area request returned 1,324 street nodes and 40 parcel assignments, with no page errors: `custom-map-check.json`. This is a real external download, distinct from the error-path browser test. The three bundled neighborhoods need no external application requests. Actual source snapshots and their hashes are preserved.
 
-All twelve deliveries complete on time without interventions. Closing all depot roads strands four couriers; reopening them resumes delivery. Scenario replay reproduces world state exactly.
+Three updated full-page screenshots show Cleveland, Manhattan, and San Francisco in `docs/media/`. The updated 50-second video records the actual UI. Its script is reproducible. Final production/public checks are recorded in their JSON evidence files after the build/deployment.
 
-Clean-checkout verification: a fresh local Git clone passed `npm ci`, type checking, unit checks, production build with the repository base path, and the full Chromium/WebKit browser suite. The base-path preview exercised real interactions and bundled model assets with no page errors, HTTP failures, or external application requests. See `production-path-check.json`.
-
-Native Safari: opened the local city, closed North Bridge, stepped the clock to 18:01, and reset. Full playback/replay assertions remain covered by Chromium/WebKit automation.
+No performance or live navigation guarantee. Native iPad hardware has not been tested. The version 1 headless scheduling measurement is historical and is not a measurement of v2; do not quote it as current performance.

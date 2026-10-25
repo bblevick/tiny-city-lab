@@ -1,27 +1,29 @@
-# Tiny City Lab — Lastlight — implementation specification
+# Lastlight v2 — a real neighborhood dispatch desk
 
-## Goal
+Design thesis: a warm illustrated street atlas where real urban geometry carries a personal, configurable delivery run. Preserve sage/ivory/rust, restrained editorial typography, and named vans. The signature is the dashed unchanged dispatch over the actual streets. Avoid a generic map dashboard.
 
-Twelve parcels. One uncooperative city. Close the roads and change somebody’s evening. A recruiter can inspect the demo without an account and reproduce the implementation. Preserve the local/free constraint and observable evidence.
+## Behavior
 
-## Interfaces and behavior
+Three bundled real OSM neighborhoods: Cleveland/Ohio City, San Francisco/Mission, New York/East Village. Original raw XML, normalized way geometry, source URLs/retrieval dates, SHA-256. Attribution visible on map; databases ODbL, original code MIT. No external calls during bundled use.
 
-`World` contains a minute counter, closed road IDs, four couriers, parcel deadlines and an ordered road-change history. `shortestPath` is deterministic Dijkstra on 49 intersections. Ordinary roads cost one simulated minute; bridges cost two. `advance` takes exactly one simulated minute. `sampleCourier` interpolates only the current segment.
+Choose 1–8 vans and 1–60 random parcels with a seed. Add manual map stops, coordinate stops, or latitude/longitude CSV. Move depot, remove stops, clear manifest. All edits restart the simulation and plan; road closure set is retained until reset. Duplicate snapped stops and depot overlap rejected. Stops snap within 200 m to the largest strongly connected component. No geocoding claims.
 
-The depot is node 21. Four named couriers each have three destinations. Deadlines are the unaltered earliest arrival plus five minutes. A road closed while a van is already on it does not teleport the van: it finishes the segment, then replans. Stranded couriers wait and retry. Simulation ends at 60 minutes and reports delivered, late, and undelivered separately. Travel delta is signed; less travel can reflect stranding, not improvement.
+Optional custom neighborhood: explicitly load a 1.2 km square by latitude/longitude. Sends only bounds to public OSM map API; timeout 55 seconds, cooldown 30 seconds, response cap 10 MB. Parsing caps: 70,000 OSM raw elements, 15,000 normalized ways, 20,000 road nodes, 30,000 segments. Failure leaves the prior map usable. No geolocation or automatic live queries.
 
-A parallel baseline dispatch advances in the same clock without any closures. The dashed comparison is a counterfactual of this fixed simulation, not a predictive traffic model. The clock runs one city minute per 350 ms while playing; Step advances exactly one minute. Reset restores the original city.
+## Architecture
 
-`Scenario` version 1 stores city `lastlight-v1`, tick (0–60) and ordered `{tick,road,closed}` actions. Import caps: 100 KB and 500 changes. Unknown roads, invalid order and future events are rejected. Restoring replays every intervention from tick zero. Browser capture helpers live at `window.tinyCity`.
+`graph.ts`: data parsing, access filtering, directed adjacency, largest strongly connected component, heap Dijkstra, nearest-node snapping. `city.ts`: seeded manifests, balanced insertion + directed 2-opt, continuous progress, closures, metrics, scenario validation/replay. `render.ts`: cached original Canvas base map, real building footprints, route overlays, vans, geographic projection, hit testing. `main.ts`: forms, pointer/touch tools, pan/zoom, playback, imports/exports.
 
-## Design thesis
+`City` holds center/bounds/nodes/roads/shapes/adj/component. `Stop` preserves requested coordinates and snapped node/distance. `World` holds a city, depot, manifest, fleet, elapsed simulated minutes, closure set, couriers and action history. `planFleet` assigns every reachable parcel exactly once and includes return to depot; not guaranteed optimal. Closed roads reroute paths without reassigning parcels. Active segment completes before replanning. Reopening resumes stranded vans. Distance delta can be negative due to stranding.
 
-A small city at closing time: sage buildings, ochre windows, brass street signs and named couriers. The signature is the dashed van that lives in the unaltered evening. Avoid generic map tiles and traffic-dashboard chrome.
+25 km/h standard streets, 10 km/h service/living streets; 30 s per delivery. Tagged one-way direction and roundabouts respected; private/no motor access excluded. No traffic, turn restrictions, capacities, grade, full-city scale or real ETA claims. At most 4 simulated hours. Stop/play/step/reset; visibility hiding pauses. Reduced motion uses discrete visual updates.
 
-## Exclusions and limits
+## Transfer and controls
 
-Fixed synthetic world, shortest-path couriers and a bounded hour. No congestion, road capacity, collision physics, real addresses, external map services or city-scale planning claims.
+Version 2 JSON: city ID, center, depot coordinates, stop ID/label/coordinates, vans, elapsed minutes, ordered `{minute,road,closed}` interventions, and raw normalized OSM for custom maps. 12 MB, 60 stops, 500 changes. Validate bounds, uniqueness and road IDs; legacy v1 explicitly rejected. Replay numerically equivalent within 1e-8 rather than claiming identical floating-point bytes. CSV: `latitude,longitude`, 1–60 rows, 50 KB; atomic rejection with row feedback.
 
-## Acceptance
+Map tools: explore, place parcel, move depot, close segment. Pointer drag pans; wheel/buttons zoom; north-up/isometric; buildings toggle; keyboard map pan/zoom, coordinate entry and segment selector. Responsive layout; visible loading/errors/status. Export dispatch JSON, actual 50-second demo, three screenshots. No backend or keys for normal use.
 
-Type checking, meaningful unit tests, Chromium/WebKit browser tests, narrow layout, production-path smoke check, clean-checkout build, three inspected screenshots and a 50-second demo. Native Safari controls and live MLX execution are recorded separately from browser automation. Public URLs must be checked after deployment.
+## Verification
+
+Type check, six meaningful unit cases including all actual snapshots and variable fleet completion, four browser cases in Chromium/WebKit, custom real map download evidence, base-path production check, clean install/build, inspected screenshots and refreshed walkthrough. Publish verified Pages revision. No unsupported navigation/optimality claims.
