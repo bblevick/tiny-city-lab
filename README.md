@@ -52,10 +52,6 @@ The three original OSM XML extracts, normalized geometry, retrieval URLs, and SH
 
 Custom-area loading makes an explicit, bounded request to the public OSM map API. Only the selected map bounds are sent; parcel coordinates stay in the browser. Requests are limited to one per 30 seconds, may fail or be too dense, and are not a production map service. No geolocation is requested, no analytics, no map tiles, no routing backend. Export files contain the locations you entered; saving is explicit.
 
-## How this was built with AI
-
-The first version used a fictional 49-node town. Ben’s feedback was direct: “can we have it mirror real cities and real locations?” and “random or user generated parcel delivery spots and # of vans?” That changed the product from a miniature demonstration into a configurable neighborhood dispatch experiment.
-
-Codex implemented the directed graph, original atlas renderer, fleet heuristic, controls, tests, and media. Real data exposed density limits and unavailable Overpass endpoints; bounded OSM extracts replaced the failing source. A replay test exposed insignificant floating-point differences, which are now bounded explicitly rather than called byte-identical. Ben supplied the product direction and judged the original experience insufficient; generated code volume is not the accomplishment.
+## Documentation and demonstration
 
 See [BUILD_LOG.md](BUILD_LOG.md) for actual checks and [TASKS.md](TASKS.md) for bounded handoff tickets. Recreate the actual UI video with `npm run demo:capture` (FFmpeg required).
